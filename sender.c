@@ -1,54 +1,32 @@
 #include <stdio.h>
-#include <sys/types.h>   // definitions of a number of data types used in socket.h and netinet/in.h
-#include <sys/socket.h>  // definitions of structures needed for sockets, e.g. sockaddr
-#include <netinet/in.h>  // constants and structures needed for internet domain addresses, e.g. sockaddr_in
+#include <sys/types.h>   
+#include <sys/socket.h>  
+#include <netinet/in.h>  
 #include <stdlib.h>
 #include <strings.h>
-#include <sys/wait.h>	/* for the waitpid() system call */
-#include <signal.h>	/* signal name macros, and the kill() prototype */
-
-#include <sys/stat.h> // for file stat
+#include <sys/wait.h>	
+#include <signal.h>	
+#include <sys/stat.h> 
 #include <time.h>
 
+#include "lib.c"
+#include "packet.h"
 
-#include "sll.h"
 
-//  USAGE: sender < portnumber > CWnd PL PC
-
-void error(char *msg) 
-{
-	perror(msg);
-	exit(1);
-}
 
 int main(int argc, char *argv[])
 {
 	srand(time(NULL));
-	int sockfd, newsockfd, portno, pid;
+	int sockfd, portno;
 	socklen_t clilen;
 	struct sockaddr_in serv_addr, cli_addr;
 
 	char buffer[PACKET_SIZE];
 
 	if (argc < 2) {
-		 fprintf(stderr,"ERROR, no port provided\n");
+		 fprintf(stderr,"Merror, no port provided\n");
 		 exit(1);
 	}
-
-/*	float pL,pC;
-	
-	if (argv[3] == NULL)
-		pL = 0;
-
-	else
-		pL = atof(argv[3]);
-
-	if (argv[4] == NULL)
-		pC = 0;
-	else
-		pC = atof(argv[4]);
-
-	printf("PL: %f, PC: %f\n", pL, pC); */
 
 	//reset memory
 	memset((char *) &serv_addr, 0, sizeof(serv_addr));	
@@ -62,107 +40,94 @@ int main(int argc, char *argv[])
 	//create UDP socket
 	sockfd = socket(AF_INET, SOCK_DGRAM, 0);	
 	if (sockfd < 0) 
-		error("ERROR opening socket");
+		Merror("Merror opening socket");
 
 	if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) 
-	    error("ERROR on binding");
+	    Merror("Merror on binding");
 
 	bzero((char*) &cli_addr, sizeof(cli_addr));
  	clilen = sizeof(cli_addr);		
 
- 	// wait for connection
- 	printf("Waiting for receiver\n\n");
+ 	printf("Waiting for Connection!\n\n");
 	bzero((char*) buffer, sizeof(char) * PACKET_SIZE);
 
  	while (1) {
- 		// once we receive file request from receiver, we go in. Otherwise, loop to keep listening
+ 		// once my_win receive file request from receiver, my_win go in. Otherwise, loop to keep listening
 	 	if (recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr*) &cli_addr, &clilen) != -1) {
-
-		/*	if (shouldReceive(pL, pC) == false) {
-				continue;
-			}*/
-
-		 	int namelen = strlen(buffer);
-		 	char filename[namelen + 1];
-			bzero(filename, sizeof(char) * (namelen + 1));
-		 	filename[namelen] = '\0';
-		 	strncpy(filename, buffer, namelen);
+		 	int Nlenth = strlen(buffer);
+		 	char Fname[Nlenth + 1];
+			bzero(Fname, sizeof(char) * (Nlenth + 1));
+		 	Fname[Nlenth] = '\0';
+		 	strncpy(Fname, buffer, Nlenth);
 
 		 	bzero((char*) buffer, sizeof(char) * PACKET_SIZE);
 
-		 	printf("Receiver wants the file: %s\n\n", filename);
+		 	printf("Receiver wants the file: %s\n\n", Fname);
 
-		 	/*
-
-				Breaking down file down to packets
-
-		 	*/
-
-			/*	GETTING FILE CONTENT */
-			FILE* f =  fopen(filename, "r");
-			if (f == NULL) {
+			//	Get from file 
+			FILE* f =  fopen(Fname, "r");
+			if (f == NULL) {  //file not found 
 				packet notfound;
-				notfound.type = FILENOTFOUNDPACKET;
 				notfound.total_size = 0;
-				printf("ERROR opening requested file\n");
-				sendto(sockfd, (char *) &notfound, sizeof(char) * PACKET_SIZE, 
-										0, (struct sockaddr*) &cli_addr, sizeof(cli_addr));
+				notfound.type = NOTFOUND;
+
+				printf("Can't opening requested file\n");
+				sendto(sockfd, (char *) &notfound, sizeof(char) * PACKET_SIZE, 0, (struct sockaddr*) &cli_addr, sizeof(cli_addr)); //send to notify not found 
 				continue;
-				
 			}
 
 			// number of bytes in the file
 			struct stat st;
-			stat(filename, &st);
-			int fileBytes = st.st_size;
+			stat(Fname, &st);
+			int BytesFile = st.st_size;
 
-			char* fileContent = (char*) calloc(fileBytes, sizeof(char));
-			if (fileContent == NULL) {
-				error("ERROR allocating space for file");
+			char* ContentFl = (char*) calloc(BytesFile, sizeof(char));
+			if (ContentFl == NULL) {
+				Merror("can't allocating space for file");
 			}
 
-			fread(fileContent, sizeof(char), fileBytes, f);
+			fread(ContentFl, sizeof(char), BytesFile, f);
 			fclose(f);
 
 			/* 	BREAK DOWN FILE */
 
-			int num_packets = fileBytes / PACKET_CONTENT_SIZE;
-			int remainderBytes = fileBytes % PACKET_CONTENT_SIZE;
-			if (remainderBytes)
-				num_packets++;
+			int packet_nums = BytesFile / PACK_CONTAIN;
+			int remainB = BytesFile % PACK_CONTAIN;
+			if (remainB) packet_nums++;//for extra packet
+		
 
-			printf("Number of packets for the file %s is: %i\n", filename, num_packets);
+			printf("Packet size of file %s: %i\n", Fname, packet_nums);
 
 			/*
 
 				PACKET ARRAY CONSTRUCTION
 
 			*/
-			//packet file_packets[num_packets];
-			packet* file_packets;
-			file_packets = (packet *) calloc(num_packets, PACKET_SIZE);
+			//packet My_packets[packet_nums];
+			packet* My_packets;
+			My_packets = (packet *) calloc(packet_nums, PACKET_SIZE);
 
-			printf("Packet Array initialized\n");
+			//printf("Packet Array initialized\n");
 
 			int i;
-			for (i = 0; i < num_packets; i++) {
+			for (i = 0; i < packet_nums; i++) {
 
-				if ((i == num_packets - 1) && remainderBytes) { 
+				if (remainB&&(i == packet_nums - 1)) { 
 				// the last packet with remainder bytes doesn't take full space
-					strncpy(file_packets[i].buffer, fileContent + i * PACKET_CONTENT_SIZE, remainderBytes);
-					file_packets[i].buffer[remainderBytes] = '\0';
+					strncpy(My_packets[i].buffer, ContentFl + i * PACK_CONTAIN, remainB);
+					My_packets[i].buffer[remainB] = '\0';
 				}
 				else { // normal cases
-					strncpy(file_packets[i].buffer, fileContent + i * PACKET_CONTENT_SIZE, PACKET_CONTENT_SIZE);
-					file_packets[i].buffer[PACKET_CONTENT_SIZE]	= '\0';
+					strncpy(My_packets[i].buffer, ContentFl + i * PACK_CONTAIN, PACK_CONTAIN);
+					My_packets[i].buffer[PACK_CONTAIN]	= '\0';
 				}
 
-				file_packets[i].total_size = fileBytes;
-				file_packets[i].seq_num = (i % MAX_SEQ_NUM)*1024;
-				file_packets[i].type = SENDPACKET;
+				My_packets[i].total_size = BytesFile;
+				My_packets[i].seq_num = (i % SEQMAX)*1024;
+				My_packets[i].type = PACKETSEND;
 			}
 
-			printf("Created array of packets with %i packets\n", num_packets);
+			//printf("Created array of packets with %i packets\n", packet_nums);
 
 
 			/*
@@ -171,100 +136,89 @@ int main(int argc, char *argv[])
 
 			*/
 
-			unsigned int window_size;
-			if (argv[2] == NULL)
-				window_size = 5;
-			else
-				window_size = atoi(argv[2]) / PACKET_SIZE;
-			printf("Window Size if %i packets\n", window_size);
-			unsigned int curr_window_elem = 0;
+			unsigned int win_list_size =5; //initial window size 
+			unsigned int current_win_ele = 0;
 
-			time_t time_to_wait_s = 0;
-			suseconds_t time_to_wait_us = 500000;
+			time_t time_s = 0;
+			suseconds_t time_us = 500000;
 
 
-			// keep sending and receiving ACK until we get ACK for last packet
-			//while (latest_ACKd_packet != num_packets - 1) {
+			// keep sending and receiving ACK until my_win get ACK for last packet
+			//while (latest_ACKd_packet != packet_nums - 1) {
 
 				/*
-					Send packets within the window size					
+					Send packets within the win_list size					
 				*/
 
-				window w = generateWindow(window_size, num_packets);
+				win_list w = win_listCreate(win_list_size, packet_nums);
 
-				while (addWindowElement(&w, (file_packets + curr_window_elem))) {
-					curr_window_elem++;
+				while (addEle(&w, (My_packets + current_win_ele))) {
+					current_win_ele++;
 				}
 
-					// here, packet_to_send will be one greater than last_window_packet
+					// here, packet_to_send will be one greater than last_win_list_packet
 
 				/*
-					Loop to receive ACKs within the window
+					Loop to receive ACKs within the win_list
 				*/
                 int sentNum =0;
 				while (1) {
 
-					window_element* we = getElementFromWindow(w);
-					while (we != NULL) {
-						unsigned int cs_num = we->packet->seq_num;
-
-						sendto(sockfd, (char *) we->packet, sizeof(char) * PACKET_SIZE, 
-										0, (struct sockaddr*) &cli_addr, sizeof(cli_addr));	
-						if (we->status == WE_RESEND) {
-							printf("Sending packet  %d %dRetransmission\n", cs_num,window_size*PACKET_SIZE);
+					win_list_element* my_win = getEle(w);
+					while (my_win != NULL) {
+						unsigned int cs_num = my_win->packet->seq_num;
+						sendto(sockfd, (char *) my_win->packet, sizeof(char) * PACKET_SIZE, 0, (struct sockaddr*) &cli_addr, sizeof(cli_addr));	
+						if (my_win->state == RESEND) {
+							printf("Sending packet  %d %dRetransmission\n", cs_num,win_list_size*PACKET_SIZE);
 						}
-						if (we->status == WE_NOT_SENT) {
+						if (my_win->state == UNSEND) {
                             if (sentNum ==0)
                             {
-                                printf("Sending packet  %d %d SYN\n", cs_num,window_size*PACKET_SIZE);
+                                printf("Sending packet  %d %d SYN\n", cs_num,win_list_size*PACKET_SIZE);
                             }
-                            else if (sentNum ==num_packets -1)
-							printf("Sending packet  %d %d FIN\n", cs_num,window_size*PACKET_SIZE);
+                            else if (sentNum ==packet_nums -1)
+							printf("Sending packet  %d %d FIN\n", cs_num,win_list_size*PACKET_SIZE);
                             else 
-                            printf("Sending packet  %d %d\n", cs_num,window_size*PACKET_SIZE);
+                            printf("Sending packet  %d %d\n", cs_num,win_list_size*PACKET_SIZE);
 						}
                         sentNum++;
 
 						struct timeval tv;
 						gettimeofday(&tv, NULL);
-						time_t t_s = tv.tv_sec + time_to_wait_s;
-						suseconds_t t_us = tv.tv_usec + time_to_wait_us;
+						time_t T_s = tv.tv_sec + time_s;
+						suseconds_t T_us = tv.tv_usec + time_us;
 
-						we->tv.tv_sec = t_s;
-						we->tv.tv_usec = t_us;
-						we->status = WE_SENT;
-						we = getElementFromWindow(w);
+						my_win->tv.tv_sec = T_s;
+						my_win->tv.tv_usec = T_us;
+						my_win->state = SENT;
+						my_win = getEle(w);
 					}
 
 					// Again, loop to listen for ACK msg
-					bool didreceive = true;
-					while (didreceive) {
-						didreceive = false;
+					bool Check_rec = true;
+					while (Check_rec) {
+						Check_rec = false;
 						if (recvfrom(sockfd, buffer, sizeof(buffer), MSG_DONTWAIT, (struct sockaddr*) &cli_addr, &clilen) != -1) {
-							didreceive = true;
-						/*	if (shouldReceive(pL, pC) == false) {
-
-								continue;
-							}*/
+							Check_rec = true;
 							// TODO: handle packet corruption & loss
 
-							packet* ACK_msg = (packet *) buffer;
+							packet* ACK_message = (packet *) buffer;
 
-							if (ACK_msg == NULL) {
-								error("ERROR Nothing in ACK msg buffer");
+							if (ACK_message == NULL) {
+								Merror("nothing in ACK_message");
 							}
 
 							int latest_ACK_received = -1;
-							if (ACK_msg->type == ACKPACKET)
-								latest_ACK_received = ACK_msg->seq_num;
+							if (ACK_message->type == ACKEDP)
+								latest_ACK_received = ACK_message->seq_num;
 							
-							if (ackWindowElement(&w, latest_ACK_received)) {
+							if (Doack(&w, latest_ACK_received)) {
 
 								printf("Receiving packet %d\n", latest_ACK_received);
 
 
-								// if the first window element is ACK'd, we can slide window
-								if (num_packets == curr_window_elem + 1 && w.length == 0) {
+								// if the first win_list element is ACK'd, my_win can slide win_list
+								if (packet_nums == current_win_ele + 1 && w.length == 0) {
 									printf("Receiving packet %d\n", latest_ACK_received);
 									break;
 								}
@@ -276,14 +230,14 @@ int main(int argc, char *argv[])
 						}
 					} // End of if recv ACK
 
-					cleanWindow(&w);
-					while (curr_window_elem != num_packets && addWindowElement(&w, (file_packets + curr_window_elem)))
-						curr_window_elem++;
+					win_listclean(&w); 
+					while (current_win_ele != packet_nums && addEle(&w, (My_packets + current_win_ele)))
+						current_win_ele++;
 
-					if (num_packets == curr_window_elem && w.length == 0) {
+				/*	if (packet_nums == current_win_ele && w.length == 0) {
 						printf("Receiving packet done\n");
 						break;
-					}
+					}*/
 
 				} // End of ACK while loop
 				//printf("Done with file transfer\n\n");
@@ -298,3 +252,4 @@ int main(int argc, char *argv[])
  	return 0;
 
 }
+ 
