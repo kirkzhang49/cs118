@@ -2,6 +2,7 @@
  * Brett Chalabian and Jason Woo */
 
 #include "lib.h"
+#include <sys/time.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -17,37 +18,14 @@ win_list win_listCreate(int win_list_size, int numPKT) {
 }
 
 bool check_all(bool* checklist, unsigned int csize) {
-	// check last win_list
-	int i;
-	if (csize < 100) {
-		for (i = 0; i < csize; i++)
-			if (checklist[i] == false)
-				return false;
-	}
-	else {
-		for (i = csize - 100; i < csize; i++)
-			if (checklist[i] == false)
-				return false;
-	}
 
+		for (int i = 0; i < csize; i++)
+		{	
+            if (checklist[i] == false)
+				return false;
+        }
 	return true;
 }
-bool Set_Cur_state(win_list* w, int sequenceNum, int state) 
-{
-    win_list_element* cur = w->HEAD;
-    while (cur != NULL) {
-        if (cur->packet->seq_num == sequenceNum)
-        {
-            cur->state = state;
-            return true;
-
-        }
-        cur = cur->next;
-    }
-    // Element not found
-    return false;
-}
-
 
 void Merror(char *msg)
 {
@@ -57,16 +35,25 @@ void Merror(char *msg)
 
 bool Doack(win_list* w, int sequenceNum) 
 {
-    return Set_Cur_state(w, sequenceNum, ACKED);
+     win_list_element* Current = w->HEAD;
+    while (Current != NULL) {
+        if (Current->packet->seq_num == sequenceNum)
+        {
+            Current->state = ACKED;
+            return true;
+
+        }
+        Current = Current->next;
+    }
+    return false;
 }
 
 void win_listclean(win_list* w) 
 {
-    // If the HEAD of the win_list can be recycled, it recycles the HEAD and sets the win_list
     while (w->HEAD != NULL && w->HEAD->state == ACKED) {
-        w->length--;
         win_list_element* temp = w->HEAD;
-
+       w->length--;
+    
         if (w->HEAD != w->TAIL) 
             w->HEAD = w->HEAD->next;
         else {
@@ -85,7 +72,7 @@ void win_listclean(win_list* w)
             if (tv.tv_sec > cur->tv.tv_sec || (tv.tv_sec == cur->tv.tv_sec && tv.tv_usec > cur->tv.tv_usec)) {
                 cur->state = RESEND;
                 cur->packet->type = RETRANS;
-                printf("Packet number %d has timed out.\n", cur->packet->seq_num);
+                printf("Packet  %d: timedout.\n", cur->packet->seq_num);
             }
         }
         cur = cur->next;
@@ -95,26 +82,24 @@ void win_listclean(win_list* w)
 
 bool addEle(win_list* w, packet* packet)
 {
-    if (w->length == w->max_size)
-        return false;
-
-    if (w->cur_pkt >= w->total_PCK)
+    if (w->length == w->max_size||w->cur_pkt >= w->total_PCK)
         return false;
 
     w->length++;
     w->cur_pkt++;
-    win_list_element* nelement = malloc(sizeof(win_list_element));
-    nelement->state = UNSEND;
-    nelement->packet = packet;
-    nelement->next = NULL;
+    win_list_element* NextELE = malloc(sizeof(win_list_element));
+    NextELE->packet = packet;
+    NextELE->next = NULL;
+    NextELE->state = UNSEND;
+
     
     if (w->HEAD == NULL && w->TAIL == NULL) {
-        w->HEAD = nelement;
-        w->TAIL = nelement;
+        w->HEAD = NextELE;
+        w->TAIL = NextELE;
     }
     else {
-        w->TAIL->next = nelement;
-        w->TAIL = nelement;
+        w->TAIL->next = NextELE;
+        w->TAIL = NextELE;
     } 
    
     return true; 
@@ -129,13 +114,35 @@ win_list_element* getEle(win_list w)
         {
             return cur;
         }
-
         cur = cur->next;
     }
     return NULL;
 }
+long GetFileSize(const char* filename)
+{
+    long size;
+    FILE *f;
+ 
+    f = fopen(filename, "rb");
+    if (f == NULL) return -1;
+    fseek(f, 0, SEEK_END);
+    size = ftell(f);
+    fclose(f);
+ 
+    return size;
+}
 
 
+void writeToFile(char* fileContent,int file_size)
+{
+	fileContent[file_size] = '\0';
+	FILE* f = fopen("test.txt", "wb");
+	if (f == NULL) {
+		Merror("error with opening file");
+	}
+	fwrite(fileContent, sizeof(char), file_size, f);
+	fclose(f);
+}
 
 
 
