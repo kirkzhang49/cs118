@@ -1,0 +1,16 @@
+alias test="rm -r /home/cs118/workspace/test/*;cp /home/cs118/Project/Project2/imp/* /home/cs118/workspace/test;cd /home/cs118/workspace/test;make clean;make;mkdir output;mv client ./output;./server 9001"
+
+alias re="cd ..;cd output;./client localhost 9001 input.txt;"
+
+./client localhost 9001 input.txt
+
+
+alias png="cd ..;cd output;./client localhost 9001 small.png;"
+
+alias small="cd ..;cd output;./client localhost 9001 small.txt;"
+
+alias tiny="cd ..;cd output;./client localhost 9001 tiny.txt;"
+
+alias input="cd ..;cd output;./client localhost 9001 input.txt;"
+
+alias large_pdf="cd ..;cd output;./client localhost 9001 large_pdf.pdf;xxd ../large_pdf.pdf > b1.hex;xxd large_pdf.pdf > b2.hex"

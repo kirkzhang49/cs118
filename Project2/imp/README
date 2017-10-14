@@ -1,0 +1,17 @@
+TEAM MEMBER:
+Yuanqi Li, 504759910, lyuanqi@cs.ucla.edu 
+Zhengkai Zhang, 604582162, kirkzhang49@gmail.com
+
+Work Divide:
+
+Yuanqi Li: main programmer of this project,slove the bugs in the project.
+Zhengkai Zhang: Take the project at first and handle the project to Yuanqi li with unsloved bugs.
+Written the report,slides, and test the project for the group.
+
+How project work:
+make
+./server portnumber
+./client hostname portnumber filename
+
+Extra creidt:
+In the setting.cpp: change the CC_ENABLED flag to true.(Project will work for congestion control algorithm)

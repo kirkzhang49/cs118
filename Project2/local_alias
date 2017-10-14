@@ -1,0 +1,1 @@
+alias test="cd /Users/liyuanqi/Google Drive/UCLA_MSCS/Quarter2/CS118/Project/Project2/imp;make clean;make;./server 9001"

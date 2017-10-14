@@ -1,0 +1,7 @@
+The server can be started with command: 
+"cs118_webserver [port#]"
+e.g. "cs118_webserver 5001"
+
+The server code is written on top of the provided example code.
+
+The server is designed in a way such that once the server is started, it will first estalish a socket connection on the specified port. Once a connection is successfully established, the server program will keep listening for requests on the socket connectoin. For every HTTP request received, it will parse the requested file name and file type. If both the file name and file type are valid, the requested file will be returned through the same socket connection.

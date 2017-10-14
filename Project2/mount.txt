@@ -1,0 +1,12 @@
+sudo mount -t vboxsf Project ~/Project
+rm -r /home/cs118/workspace/test/*
+cp /home/cs118/Project/Project2/imp/* /home/cs118/workspace/test
+cd /home/cs118/workspace/test
+
+cd /opt/VBoxGuestAdditions-*/init  
+sudo ./vboxadd setup
+modprobe -a vboxguest vboxsf vboxvideo
+
+apt-get install linux-headers-$(uname -r)
+sh /media/cdrom/VBoxLinuxAdditions.run --nox11
+sudo /etc/init.d/vboxadd setup
